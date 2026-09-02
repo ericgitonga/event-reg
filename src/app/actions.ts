@@ -9,7 +9,9 @@ import {
   parseCompleteRegistration,
   type CompleteRegistrationFieldErrors,
 } from "@/lib/complete-registration";
-import { getSlotsRemaining, insertCompleteRegistration } from "@/lib/registrations-store";
+import { getSlotsRemaining, insertCompleteRegistration, updateSmsStatus } from "@/lib/registrations-store";
+import { sendConfirmation } from "@/lib/confirmation";
+import type { MpesaManualProof } from "@/lib/payment-providers";
 import {
   checkRateLimit,
   clientIpFromHeaders,
@@ -57,10 +59,8 @@ export type CompleteRegistrationResult =
 // busherian-hike issue #106). Re-validates every field from scratch (both the main registration
 // fields and the payment proof, via the combined schema) rather than trusting
 // validateRegistration's earlier pass, then re-checks capacity (slots could have filled between
-// the two steps), then performs the single insert.
-//
-// Confirmation (SMS/email) is deliberately not wired in here yet — see issue #6. A registration
-// written by this action has no sms_status set until #6 adds that call.
+// the two steps), then performs the single insert, then fires the confirmation immediately —
+// same sequencing as busherian-hike's completeRegistration.
 export async function completeRegistration(input: unknown): Promise<CompleteRegistrationResult> {
   const event = await getActiveEvent();
   const ip = clientIpFromHeaders(await headers());
@@ -78,7 +78,28 @@ export async function completeRegistration(input: unknown): Promise<CompleteRegi
     return { success: false, reason: "full" };
   }
 
-  await insertCompleteRegistration(event.id, result.data);
+  const row = await insertCompleteRegistration(event.id, result.data);
+
+  // proof is typed as the M-Pesa manual shape since that's the only payment provider
+  // implemented so far (src/lib/payment-providers.ts) — see insertCompleteRegistration's own
+  // note on this narrowing.
+  const proof = result.data.proof as MpesaManualProof;
+  const confirmationResult = await sendConfirmation({
+    registrationId: row.id,
+    eventName: event.name,
+    eventDate: event.eventDate,
+    name: row.name,
+    phone: proof.payerPhone,
+    email: row.email ?? undefined,
+    isTestRow: row.isTestRow,
+  });
+  // 'failed' here is what a future retry mechanism (issue #11) and the payments dashboard's
+  // Resend button (issue #8) would act on — a real send attempt that came back false, as
+  // opposed to a test row's deliberate 'skipped'.
+  await updateSmsStatus(
+    row.id,
+    row.isTestRow ? "skipped" : confirmationResult.smsSent ? "sent" : "failed",
+  );
 
   return { success: true };
 }

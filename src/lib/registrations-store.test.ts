@@ -7,7 +7,7 @@ beforeEach(() => {
   execute.mockClear();
 });
 
-import { getPaidCount, getSlotsRemaining, insertCompleteRegistration } from "./registrations-store";
+import { getPaidCount, getSlotsRemaining, insertCompleteRegistration, updateSmsStatus } from "./registrations-store";
 import type { CompleteRegistrationInput } from "./complete-registration";
 
 describe("getPaidCount", () => {
@@ -50,5 +50,15 @@ describe("insertCompleteRegistration", () => {
     const call = execute.mock.calls[0][0];
     expect(call.args[1]).toBe("event-1");
     expect(call.args[9]).toBe(JSON.stringify({ ticketType: "full" }));
+  });
+});
+
+describe("updateSmsStatus", () => {
+  it("updates the given registration's sms_status", async () => {
+    execute.mockResolvedValueOnce({});
+    await updateSmsStatus("reg-1", "sent");
+    expect(execute).toHaveBeenCalledWith(
+      expect.objectContaining({ args: ["sent", "reg-1"] }),
+    );
   });
 });
