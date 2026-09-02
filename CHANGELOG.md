@@ -6,6 +6,29 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 adheres to [Semantic Versioning](https://semver.org) (pre-1.0: MINOR = new features/user-facing
 behaviour, PATCH = fixes/docs/housekeeping — see `SKILL.md`).
 
+## [0.3.0] - 2026-09-03
+
+### Added
+
+- `registrations` table, scoped by `event_id`, with baseline logistics/legal columns (name,
+  guest count, next-of-kin, consent, terms) plus a `custom_fields_json` escape hatch for
+  event-specific fields (closes #4)
+- `src/lib/event-fields.ts`: `EventFieldDefinitionSchema` + `buildCustomFieldsSchema()` — an
+  event's custom registration fields (age group, ticket type, school, ...) are now described by
+  data in `config_json` and validated by a dynamically-built Zod schema, rather than hardcoded
+  per-event TypeScript constants
+- `src/lib/registration.ts`: `buildRegistrationSchema()` combines the fixed baseline with an
+  event's custom fields into one schema
+- `src/lib/capacity.ts`/`registrations-store.ts`: event-scoped `computeSlotsRemaining()` /
+  `getPaidCount()` / `getSlotsRemaining()`, parameterized by event instead of a global constant
+
+Registration form UI and the actual insert path are deferred to #5 (payment flow) — in the
+ported architecture, a registration row is only ever written together with its payment proof, so
+building the UI/write path ahead of the payment-provider abstraction it depends on would mean
+redoing it once #5 lands.
+
+tag: `v0.3.0`
+
 ## [0.2.0] - 2026-09-02
 
 ### Added
