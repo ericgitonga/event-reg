@@ -7,7 +7,14 @@ beforeEach(() => {
   execute.mockClear();
 });
 
-import { getPaidCount, getSlotsRemaining, insertCompleteRegistration, updateSmsStatus } from "./registrations-store";
+import {
+  getPaidAttendees,
+  getPaidCount,
+  getSlotsRemaining,
+  insertCompleteRegistration,
+  markCheckedIn,
+  updateSmsStatus,
+} from "./registrations-store";
 import type { CompleteRegistrationInput } from "./complete-registration";
 
 describe("getPaidCount", () => {
@@ -50,6 +57,40 @@ describe("insertCompleteRegistration", () => {
     const call = execute.mock.calls[0][0];
     expect(call.args[1]).toBe("event-1");
     expect(call.args[9]).toBe(JSON.stringify({ ticketType: "full" }));
+  });
+});
+
+describe("getPaidAttendees", () => {
+  it("scopes the query by event_id and maps checked_in to a boolean", async () => {
+    execute.mockResolvedValueOnce({
+      rows: [
+        { id: "r1", name: "Jane", checked_in: 1 },
+        { id: "r2", name: "Jill", checked_in: 0 },
+      ],
+    });
+    const attendees = await getPaidAttendees("event-1");
+    expect(attendees).toEqual([
+      { id: "r1", name: "Jane", checkedIn: true },
+      { id: "r2", name: "Jill", checkedIn: false },
+    ]);
+    expect(execute).toHaveBeenCalledWith(expect.objectContaining({ args: ["event-1"] }));
+  });
+});
+
+describe("markCheckedIn", () => {
+  it("scopes the update by both id and event_id, returning whether a row matched", async () => {
+    execute.mockResolvedValueOnce({ rowsAffected: 1 });
+    const matched = await markCheckedIn("event-1", "reg-1");
+    expect(matched).toBe(true);
+    expect(execute).toHaveBeenCalledWith(
+      expect.objectContaining({ args: ["reg-1", "event-1"] }),
+    );
+  });
+
+  it("returns false when no row matched (already checked in, or wrong event)", async () => {
+    execute.mockResolvedValueOnce({ rowsAffected: 0 });
+    const matched = await markCheckedIn("event-1", "reg-1");
+    expect(matched).toBe(false);
   });
 });
 

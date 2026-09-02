@@ -44,7 +44,38 @@ export async function checkRateLimit(
   return count <= config.limit;
 }
 
-// Matches busherian-hike's audit-derived values (finding M1: "5 submissions/hour").
+async function getCount(bucketKey: string, windowSeconds: number): Promise<number> {
+  const windowStart = currentWindowStart(windowSeconds);
+  const result = await db.execute({
+    sql: "SELECT count FROM rate_limits WHERE bucket_key = ? AND window_start = ?",
+    args: [bucketKey, windowStart],
+  });
+  return result.rows.length > 0 ? Number(result.rows[0].count) : 0;
+}
+
+// For secret-guessing endpoints (PIN checks) — only *wrong* attempts consume the budget, via
+// isLockedOut()/recordAuthFailure() below, so a legitimate caller that already has the correct
+// PIN (e.g. the check-in scanner, called once per attendee scanned) is never throttled; only a
+// run of wrong guesses locks the route+IP pair out.
+export async function isLockedOut(
+  route: string,
+  identifier: string,
+  config: RateLimitConfig,
+): Promise<boolean> {
+  return (await getCount(`${route}:${identifier}`, config.windowSeconds)) >= config.limit;
+}
+
+export async function recordAuthFailure(
+  route: string,
+  identifier: string,
+  config: RateLimitConfig,
+): Promise<void> {
+  await incrementAndGetCount(`${route}:${identifier}`, config.windowSeconds);
+}
+
+// Matches busherian-hike's audit-derived values (finding C1: "5 attempts per IP per 15 minutes";
+// finding M1: "5 submissions/hour").
+export const PIN_AUTH_RATE_LIMIT: RateLimitConfig = { limit: 5, windowSeconds: 900 };
 export const REGISTRATION_RATE_LIMIT: RateLimitConfig = { limit: 5, windowSeconds: 3600 };
 // Same shape as REGISTRATION_RATE_LIMIT — gates completeRegistration, the only place a
 // registration row is ever written, so this is the actual public write endpoint.

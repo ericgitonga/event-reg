@@ -1,6 +1,6 @@
 {
   "name": "event-reg",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -15,6 +15,7 @@
     "@libsql/client": "^0.18.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
+    "html5-qrcode": "^2.3.8",
     "next": "16.3.4",
     "qrcode": "^1.5.4",
     "react": "19.2.8",
