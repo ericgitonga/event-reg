@@ -1,20 +1,24 @@
 {
   "name": "event-reg",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "db:migrate": "node --env-file=.env.local scripts/migrate.mjs",
+    "db:create-event": "node --env-file=.env.local scripts/create-event.mjs"
   },
   "dependencies": {
+    "@libsql/client": "^0.18.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "next": "16.3.4",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
