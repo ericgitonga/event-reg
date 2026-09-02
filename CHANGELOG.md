@@ -6,6 +6,32 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 adheres to [Semantic Versioning](https://semver.org) (pre-1.0: MINOR = new features/user-facing
 behaviour, PATCH = fixes/docs/housekeeping — see `SKILL.md`).
 
+## [0.4.0] - 2026-09-03
+
+### Added
+
+- `src/lib/payment.ts`/`payment-providers.ts`: event-scoped fee calculation and a
+  `payment_provider` abstraction — `mpesa_manual` (direct M-Pesa send-and-prove-it, ported from
+  busherian-hike) is the only provider implemented so far; a second provider is added when one
+  is actually needed, not speculatively
+- `src/lib/complete-registration.ts`: combines the registration schema with the active payment
+  provider's proof schema into one — a registration row is only ever written together with its
+  payment proof, matching busherian-hike issue #106's rework
+- `RegistrationForm` component: renders the baseline fields plus an event's custom fields
+  dynamically (from #4's field definitions), with a provider-branching payment step
+- `src/app/actions.ts`: `validateRegistration`/`completeRegistration` server actions, event-scoped
+  via `getActiveEvent()`, with the same two-step validate-then-write flow and rate limiting as
+  busherian-hike
+- `registrations` table gets `mpesa_code`/`payer_phone`/`sms_status` columns; `rate_limits` table
+  added (event-agnostic)
+- Closes #5
+
+Confirmation/SMS sending is deliberately not wired into `completeRegistration` yet — see #6.
+Neither `RegistrationForm` nor the server actions are wired into a page yet — that lands with #9
+(landing page), alongside the CI database infrastructure a live page render will need.
+
+tag: `v0.4.0`
+
 ## [0.3.0] - 2026-09-03
 
 ### Added

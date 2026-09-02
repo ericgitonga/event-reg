@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildCustomFieldsSchema,
   EventFieldDefinitionSchema,
+  parseEventFields,
   type EventFieldDefinition,
 } from "./event-fields";
 
@@ -93,5 +94,25 @@ describe("buildCustomFieldsSchema", () => {
   it("builds an empty schema for an event with no custom fields", () => {
     const schema = buildCustomFieldsSchema([]);
     expect(schema.safeParse({}).success).toBe(true);
+  });
+});
+
+describe("parseEventFields", () => {
+  it("returns an empty array when config has no fields key", () => {
+    expect(parseEventFields({})).toEqual([]);
+  });
+
+  it("parses a config's fields array", () => {
+    const config = {
+      fields: [
+        { key: "shirtSize", label: "Shirt size", type: "text", required: false },
+      ],
+    };
+    expect(parseEventFields(config)).toEqual(config.fields);
+  });
+
+  it("throws if a field definition is malformed", () => {
+    const config = { fields: [{ key: "bad key", label: "x", type: "text", required: true }] };
+    expect(() => parseEventFields(config)).toThrow();
   });
 });

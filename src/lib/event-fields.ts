@@ -33,6 +33,12 @@ export type EventFieldDefinition = z.infer<typeof EventFieldDefinitionSchema>;
 
 export const EventFieldsSchema = z.array(EventFieldDefinitionSchema);
 
+// An event with no custom fields at all simply omits `fields` from its config — treated as an
+// empty list rather than an error, so a minimal event config doesn't need a redundant `[]`.
+export function parseEventFields(config: Record<string, unknown>): EventFieldDefinition[] {
+  return EventFieldsSchema.parse(config.fields ?? []);
+}
+
 // Builds a Zod schema for one event's custom-field set at request time — the whole point of
 // making these config-driven rather than hardcoded per-event TypeScript constants. Field order
 // isn't meaningful to the resulting schema (only to how a form renders them), so this can be
