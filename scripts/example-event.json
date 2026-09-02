@@ -1,0 +1,24 @@
+{
+  "id": "example-2026",
+  "slug": "example-2026",
+  "name": "Example Event 2026",
+  "eventDate": "2026-12-31",
+  "venue": "TBD",
+  "capacityCap": 100,
+  "currency": "KES",
+  "perHeadFee": 1000,
+  "paymentProvider": "mpesa_manual",
+  "paymentConfig": {
+    "recipientPhone": "0700000000",
+    "recipientName": "Example Organiser"
+  },
+  "retentionDays": 30,
+  "organiserPin": "0000",
+  "dataControllerName": "Example Organiser",
+  "dataControllerContact": "organiser@example.com",
+  "config": {
+    "tagline": "Replace this with your event's copy.",
+    "ageGroupOptions": ["Under 18", "18+"],
+    "ticketTypeOptions": [{ "value": "standard", "label": "Standard" }]
+  }
+}
