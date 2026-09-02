@@ -19,6 +19,16 @@ behaviour, PATCH = fixes/docs/housekeeping — see `SKILL.md`).
   `event_id` as defense in depth)
 - `isLockedOut`/`recordAuthFailure`/`PIN_AUTH_RATE_LIMIT` added to `rate-limit.ts`
 
+### Fixed
+
+- `src/lib/db.ts`'s Turso client is now created lazily on first actual use, not at module load.
+  Adding the first real API route (`/api/checkin/*`) exposed that the old eager
+  `createClient()` call threw immediately without `TURSO_DATABASE_URL`/`TURSO_AUTH_TOKEN` — and
+  Next.js's build-time page-data collection imports every route module (even ones that only
+  transitively import `db.ts`) to inspect its config, so this failed `next build` outright in
+  CI (no DB credentials there), not just at request time. Confirmed fixed by rebuilding locally
+  with `.env.local` removed entirely.
+
 **Verified against the live Turso database and a running server**: seeded a real event +
 paid registration, exercised the full HTTP flow — wrong PIN rejected, correct PIN issues a
 session, check-in marks the row, a repeat scan is a no-op, an unauthenticated request is
