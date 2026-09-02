@@ -18,7 +18,21 @@
   "dataControllerContact": "organiser@example.com",
   "config": {
     "tagline": "Replace this with your event's copy.",
-    "ageGroupOptions": ["Under 18", "18+"],
-    "ticketTypeOptions": [{ "value": "standard", "label": "Standard" }]
+    "fields": [
+      {
+        "key": "ageGroup",
+        "label": "Age group",
+        "type": "select",
+        "required": true,
+        "options": ["Under 18", "18+"]
+      },
+      {
+        "key": "ticketType",
+        "label": "Ticket type",
+        "type": "select",
+        "required": true,
+        "options": ["standard"]
+      }
+    ]
   }
 }
