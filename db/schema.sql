@@ -2,7 +2,8 @@
 -- an already-provisioned one. Every future column addition needs its own `ALTER TABLE`, run
 -- directly against the shared main/preview/prod database and the CI-only database, once each;
 -- this file's `CREATE TABLE` definition only matters again if either database is ever recreated
--- from scratch.
+-- from scratch. `registrations`' mpesa_code/payer_phone/sms_status were added this way (issue
+-- #5, 2026-09-03) after the table already existed with issue #4's original column set.
 --
 -- One row per event this platform has ever run. `config_json` and `payment_config_json` are the
 -- escape hatch for everything that doesn't deserve its own column yet — see
@@ -32,9 +33,11 @@ CREATE TABLE IF NOT EXISTS events (
 -- logistics/legal fields (see src/lib/registration.ts's BaseRegistrationSchema) get their own
 -- column; everything event-specific (age group, ticket type, school, shirt size, ...) lives in
 -- `custom_fields_json`, keyed by the field definitions in that event's own `config_json` — see
--- src/lib/event-fields.ts. Payment-provider-specific columns (M-Pesa code/phone, etc.) are added
--- by a later ALTER TABLE once issue #5 lands, following the same incremental-migration
--- convention as busherian-hike's own schema.sql history.
+-- src/lib/event-fields.ts. mpesa_code/payer_phone are specific to the "mpesa_manual" payment
+-- provider (src/lib/payment-providers.ts) — the only one implemented so far; a second provider
+-- gets its own columns (or a generic payment_reference_json) added the same way, via ALTER
+-- TABLE against an already-provisioned database, once it's actually needed. sms_status is
+-- written by issue #6 (confirmation/SMS), not yet by anything in this file's history.
 CREATE TABLE IF NOT EXISTS registrations (
   id TEXT PRIMARY KEY,
   event_id TEXT NOT NULL REFERENCES events (id),
@@ -47,6 +50,9 @@ CREATE TABLE IF NOT EXISTS registrations (
   media_consent TEXT CHECK (media_consent IN ('yes', 'no')),
   custom_fields_json TEXT NOT NULL DEFAULT '{}',
   is_test_row INTEGER NOT NULL DEFAULT 0,
+  mpesa_code TEXT,
+  payer_phone TEXT,
+  sms_status TEXT CHECK (sms_status IN ('sent', 'failed', 'skipped')),
   paid INTEGER NOT NULL DEFAULT 0,
   paid_at TEXT,
   checked_in INTEGER NOT NULL DEFAULT 0,
@@ -55,3 +61,16 @@ CREATE TABLE IF NOT EXISTS registrations (
 );
 
 CREATE INDEX IF NOT EXISTS idx_registrations_event_id ON registrations (event_id);
+
+-- Fixed-window rate-limit counters (see src/lib/rate-limit.ts). bucket_key is
+-- "<route>:<identifier>" (identifier is a client IP); window_start is the epoch-second start of
+-- the current fixed window. Event-agnostic (keyed by route+IP, not any event's content) — no
+-- event_id needed, per generalize.md §2.
+CREATE TABLE IF NOT EXISTS rate_limits (
+  bucket_key TEXT NOT NULL,
+  window_start INTEGER NOT NULL,
+  count INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (bucket_key, window_start)
+);
+
+CREATE INDEX IF NOT EXISTS idx_rate_limits_window_start ON rate_limits (window_start);
