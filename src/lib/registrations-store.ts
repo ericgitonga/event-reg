@@ -46,6 +46,19 @@ export async function insertCompleteRegistration(
   return { id, name: input.name, email: input.email || null, isTestRow: !!input.isTestRow };
 }
 
+export type SmsStatus = "sent" | "failed" | "skipped";
+
+// Written once, right after sendConfirmation's one real attempt at insert time — 'failed' rows
+// are what a future retry mechanism (issue #11) and the payments dashboard's manual Resend
+// button (issue #8) would act on. A test row is written 'skipped' rather than left NULL, so
+// it's visibly distinct from "never attempted yet."
+export async function updateSmsStatus(registrationId: string, status: SmsStatus): Promise<void> {
+  await db.execute({
+    sql: "UPDATE registrations SET sms_status = ? WHERE id = ?",
+    args: [status, registrationId],
+  });
+}
+
 // Headcount, not row count — a paid registration's guests count against capacity the same as
 // the registrant themselves (ported from busherian-hike issue #82). Scoped by event_id since
 // this database can hold more than one event's rows (generalize.md §2/§3).

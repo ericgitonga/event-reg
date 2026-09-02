@@ -6,6 +6,27 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 adheres to [Semantic Versioning](https://semver.org) (pre-1.0: MINOR = new features/user-facing
 behaviour, PATCH = fixes/docs/housekeeping — see `SKILL.md`).
 
+## [0.5.0] - 2026-09-03
+
+### Added
+
+- `src/lib/confirmation.ts`/`confirmation-message.ts`: event-scoped confirmation message
+  (event name/date come from the active event's row, not a hardcoded string) and orchestration,
+  ported from busherian-hike
+- `src/lib/sms.ts`: SasaSignal transactional SMS integration, ported as-is (deployment-level
+  secret, not per-event)
+- `src/lib/email.ts`: placeholder email confirmation (no real provider wired up yet), ported
+  as-is
+- `src/lib/qr.ts`: registration QR code generation, shared future infrastructure for both this
+  issue's email attachment and issue #7's check-in scanning
+- `completeRegistration` now fires the confirmation immediately after insert and records
+  `sms_status`, matching busherian-hike's sequencing (closes #6)
+
+`whatsapp.ts` was not ported — busherian-hike's own version is a permanently-shelved,
+never-called placeholder; no reason to carry forward dead code into a fresh codebase.
+
+tag: `v0.5.0`
+
 ## [0.4.0] - 2026-09-03
 
 ### Added
