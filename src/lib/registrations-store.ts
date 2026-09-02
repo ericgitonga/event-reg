@@ -46,6 +46,36 @@ export async function insertCompleteRegistration(
   return { id, name: input.name, email: input.email || null, isTestRow: !!input.isTestRow };
 }
 
+export type Attendee = { id: string; name: string; checkedIn: boolean };
+
+export async function getPaidAttendees(eventId: string): Promise<Attendee[]> {
+  const result = await db.execute({
+    sql: "SELECT id, name, checked_in FROM registrations WHERE event_id = ? AND paid = 1",
+    args: [eventId],
+  });
+  return result.rows.map((row) => ({
+    id: String(row.id),
+    name: String(row.name),
+    checkedIn: Number(row.checked_in) === 1,
+  }));
+}
+
+// Idempotent: only touches rows not already checked in, so a duplicate sync (offline retry,
+// double scan) never overwrites the original checked_in_at timestamp. Scoped to event_id as
+// defense in depth — an organiser session is already bound to one event (src/lib/auth.ts), but
+// this stops a scanned id from ever mutating another event's row even if that ever changed.
+// Returns whether a row was actually matched — a garbage or already-checked-in id is a silent
+// no-op otherwise, with no way for the caller to tell that apart from a real check-in.
+export async function markCheckedIn(eventId: string, registrationId: string): Promise<boolean> {
+  const result = await db.execute({
+    sql: `UPDATE registrations
+          SET checked_in = 1, checked_in_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+          WHERE id = ? AND event_id = ? AND checked_in = 0`,
+    args: [registrationId, eventId],
+  });
+  return result.rowsAffected > 0;
+}
+
 export type SmsStatus = "sent" | "failed" | "skipped";
 
 // Written once, right after sendConfirmation's one real attempt at insert time — 'failed' rows
