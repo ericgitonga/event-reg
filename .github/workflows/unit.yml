@@ -1,0 +1,24 @@
+name: Unit
+
+# Gates a PR on the Vitest unit suite (colocated *.test.ts files) — fast, pure-logic coverage,
+# alongside (not instead of) e2e.yml's Playwright suite. No build, server, or browser install
+# needed.
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: npm ci
+
+      - name: Run unit test suite
+        run: npm run test
