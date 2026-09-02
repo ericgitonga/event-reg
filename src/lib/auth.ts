@@ -34,9 +34,14 @@ export function verifyCronSecret(authHeader: string | null): boolean {
 // be replayed against a different event's data if the active event ever changes mid-session
 // (generalize.md §7 — the load-bearing change from busherian-hike's single-event version, which
 // only ever had one event to worry about).
+// Shared by every PIN-gated organiser area (check-in, payments) via its own separately-scoped
+// cookie; the token itself doesn't encode which area it's for, only that the PIN was verified
+// within the TTL, for which event.
 export const CHECKIN_SESSION_COOKIE = "checkin_session";
+export const PAYMENTS_SESSION_COOKIE = "payments_session";
 const ORGANISER_SESSION_TTL_SECONDS = 4 * 60 * 60; // long enough to span one event day
 export const CHECKIN_SESSION_MAX_AGE_SECONDS = ORGANISER_SESSION_TTL_SECONDS;
+export const PAYMENTS_SESSION_MAX_AGE_SECONDS = ORGANISER_SESSION_TTL_SECONDS;
 
 function signSessionPayload(eventId: string, expiresAt: number, secret: string): string {
   return createHmac("sha256", secret).update(`${eventId}.${expiresAt}`).digest("hex");
