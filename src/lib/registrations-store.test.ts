@@ -10,6 +10,7 @@ beforeEach(() => {
 import {
   deleteRegistration,
   getAllRegistrations,
+  getFailedSmsRegistrations,
   getPaidAttendees,
   getPaidCount,
   getRegistrationsForPayments,
@@ -18,6 +19,7 @@ import {
   insertCompleteRegistration,
   markCheckedIn,
   markPaid,
+  purgeContactFields,
   updateSmsStatus,
 } from "./registrations-store";
 import type { CompleteRegistrationInput } from "./complete-registration";
@@ -171,6 +173,57 @@ describe("getAllRegistrations", () => {
     const rows = await getAllRegistrations("event-1");
     expect(rows).toEqual([{ id: "r1" }]);
     expect(execute).toHaveBeenCalledWith(expect.objectContaining({ args: ["event-1"] }));
+  });
+});
+
+describe("purgeContactFields", () => {
+  it("returns the number of rows purged, from a query with no event_id argument (every event)", async () => {
+    execute.mockResolvedValueOnce({ rowsAffected: 5 });
+    const count = await purgeContactFields();
+    expect(count).toBe(5);
+    const call = execute.mock.calls[0][0] as string;
+    expect(call).toContain("date(event_date, '+' || retention_days || ' days') <= date('now')");
+  });
+
+  it("returns zero when nothing matched", async () => {
+    execute.mockResolvedValueOnce({ rowsAffected: 0 });
+    expect(await purgeContactFields()).toBe(0);
+  });
+});
+
+describe("getFailedSmsRegistrations", () => {
+  it("joins to events and maps each row, camelCased, with no event_id argument (every event)", async () => {
+    execute.mockResolvedValueOnce({
+      rows: [
+        {
+          registration_id: "reg-1",
+          name: "Jane",
+          payer_phone: "0712345678",
+          event_id: "event-1",
+          event_name: "Event One",
+          event_date: "2026-09-19",
+        },
+      ],
+    });
+    const rows = await getFailedSmsRegistrations();
+    expect(rows).toEqual([
+      {
+        eventId: "event-1",
+        eventName: "Event One",
+        eventDate: "2026-09-19",
+        registrationId: "reg-1",
+        name: "Jane",
+        payerPhone: "0712345678",
+      },
+    ]);
+    const call = execute.mock.calls[0][0] as string;
+    expect(call).toContain("JOIN events");
+    expect(call).toContain("sms_status = 'failed'");
+  });
+
+  it("returns an empty array when nothing has failed", async () => {
+    execute.mockResolvedValueOnce({ rows: [] });
+    expect(await getFailedSmsRegistrations()).toEqual([]);
   });
 });
 

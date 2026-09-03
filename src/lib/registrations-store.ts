@@ -79,7 +79,7 @@ export async function markCheckedIn(eventId: string, registrationId: string): Pr
 export type SmsStatus = "sent" | "failed" | "skipped";
 
 // Written once, right after sendConfirmation's one real attempt at insert time — 'failed' rows
-// are what a future retry mechanism (issue #11) and the payments dashboard's manual Resend
+// are what the retry-failed-sms cron (issue #11) and the payments dashboard's manual Resend
 // button (issue #8) would act on. A test row is written 'skipped' rather than left NULL, so
 // it's visibly distinct from "never attempted yet."
 export async function updateSmsStatus(registrationId: string, status: SmsStatus): Promise<void> {
@@ -162,7 +162,7 @@ export type ResendSmsTarget = { name: string; payerPhone: string; isTestRow: boo
 
 // Only a row that's actually reached the payment-proof step (payer_phone IS NOT NULL) has
 // anything to resend — one that hasn't gets NULL back, same "not ready yet" signal whether the
-// caller is the manual Resend button or a future retry mechanism (issue #11).
+// caller is the manual Resend button or the retry-failed-sms cron (issue #11).
 export async function getResendSmsTarget(
   eventId: string,
   registrationId: string,
@@ -179,6 +179,60 @@ export async function getResendSmsTarget(
     payerPhone: String(row.payer_phone),
     isTestRow: Number(row.is_test_row) === 1,
   };
+}
+
+// Clears next-of-kin/email fields once an event's own retention window has passed (issue #11) —
+// event_date + retention_days, computed per row's event via the join below, not a single global
+// cutoff, since each event sets its own retentionDays (generalize.md §8's Decisions). Rows
+// belonging to an event whose window hasn't passed yet are left untouched, so this can safely
+// run against every event this deployment has ever served in one call, not just the active one.
+// payer_phone/mpesa_code are deliberately untouched — payment-proof data, not the contact-info
+// fields this purge exists to clear.
+export async function purgeContactFields(): Promise<number> {
+  const result = await db.execute(
+    `UPDATE registrations
+     SET next_of_kin_name = '', next_of_kin_contact = '', email = NULL
+     WHERE (next_of_kin_name != '' OR next_of_kin_contact != '' OR email IS NOT NULL)
+       AND event_id IN (
+         SELECT id FROM events
+         WHERE date(event_date, '+' || retention_days || ' days') <= date('now')
+       )`,
+  );
+  return result.rowsAffected;
+}
+
+export type FailedSmsRow = {
+  eventId: string;
+  eventName: string;
+  eventDate: string;
+  registrationId: string;
+  name: string;
+  payerPhone: string;
+};
+
+// Every row whose last SMS attempt failed, across every event this deployment has ever served —
+// not scoped to the active event, per generalize.md §8, since a retry cron should catch up a
+// stale failure regardless of which event is currently active. Joined to `events` (rather than
+// just returning event_id) so the caller has everything resendSmsConfirmation/
+// buildConfirmationMessage need to rebuild that event's confirmation message without a second
+// query per row.
+export async function getFailedSmsRegistrations(): Promise<FailedSmsRow[]> {
+  const result = await db.execute(
+    `SELECT registrations.id AS registration_id, registrations.name AS name,
+            registrations.payer_phone AS payer_phone,
+            events.id AS event_id, events.name AS event_name, events.event_date AS event_date
+     FROM registrations
+     JOIN events ON events.id = registrations.event_id
+     WHERE registrations.sms_status = 'failed'`,
+  );
+  return result.rows.map((row) => ({
+    eventId: String(row.event_id),
+    eventName: String(row.event_name),
+    eventDate: String(row.event_date),
+    registrationId: String(row.registration_id),
+    name: String(row.name),
+    payerPhone: String(row.payer_phone),
+  }));
 }
 
 // Headcount, not row count — a paid registration's guests count against capacity the same as

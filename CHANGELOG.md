@@ -6,6 +6,32 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 adheres to [Semantic Versioning](https://semver.org) (pre-1.0: MINOR = new features/user-facing
 behaviour, PATCH = fixes/docs/housekeeping — see `SKILL.md`).
 
+## [0.10.0] - 2026-09-03
+
+### Added
+
+- `/api/cron/purge-contact-fields` and `/api/cron/retry-failed-sms`, ported from busherian-hike
+  as Vercel Crons (closes #11), scheduled via a new `vercel.json`. Unlike busherian-hike's
+  single-event version, both iterate every event this deployment has ever served in one run, not
+  just the active one — `registrations-store.ts`'s new `purgeContactFields()` scopes each row by
+  its own event's retention cutoff (`event_date` + `retention_days`) via a join to `events`
+  rather than a single global cutoff date, and `getFailedSmsRegistrations()` is a cross-event
+  join returning everything `resendSmsConfirmation` needs to retry each row against its own
+  event's name/date (per generalize.md §8)
+- `CRON_SECRET` (new `.env.example` entry) gates both routes — same `verifyCronSecret` already in
+  `src/lib/auth.ts`. Generated and added to this deployment's Production and Preview environments
+  as part of this change (`vercel env add`, piped via stdin, never echoed)
+- Unit coverage: `registrations-store.test.ts` for the two new store functions'
+  query-shape/scoping, plus `route.test.ts` for both cron routes' auth gate and
+  success/failure-count reporting
+
+**Verified against a real production build and the real (Turso-backed) dev database**: both
+routes correctly 401 with no/wrong `Authorization` header, and return 200 with the expected
+`{purged: 0}` / `{retried: 0, succeeded: 0, stillFailed: 0}` shape with the correct secret and no
+matching rows yet.
+
+tag: `v0.10.0`
+
 ## [0.9.0] - 2026-09-03
 
 ### Added
