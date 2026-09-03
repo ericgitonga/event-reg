@@ -49,8 +49,8 @@ export type ResendSmsResult =
   | { status: "skipped" }
   | { status: "not_found" };
 
-// Shared by the manual Resend button (POST /api/payments/resend-sms) and a future retry
-// mechanism (issue #11) — both just need "try the SMS again for this row and persist the
+// Shared by the manual Resend button (POST /api/payments/resend-sms) and the retry-failed-sms
+// cron (issue #11) — both just need "try the SMS again for this row and persist the
 // outcome," not the QR/email machinery sendConfirmation's first attempt also runs (a resend is
 // SMS-only, on request or on retry; there's no reason to regenerate the QR or re-send the email
 // every time).

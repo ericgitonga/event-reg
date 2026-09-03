@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/purge-contact-fields",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/retry-failed-sms",
+      "schedule": "30 3 * * *"
+    }
+  ]
+}
