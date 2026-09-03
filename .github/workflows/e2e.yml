@@ -58,13 +58,26 @@ jobs:
         # imported into a Client Component) — same reasoning as busherian-hike issue #40. -l
         # lists only matching *filenames*, never the matched line/content, so this is safe to
         # print even on a hit; GitHub Actions also automatically masks this secret value anywhere
-        # it'd appear in logs, as a second layer.
+        # it'd appear in logs, as a second layer. Loops over every secret this job actually has
+        # access to (issue #32, Low) rather than a single hardcoded name, so adding a new CI
+        # secret here also automatically gets this coverage instead of relying on someone
+        # remembering to duplicate the check by hand.
         env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
         run: |
-          matches=$(grep -rlF -e "$TURSO_AUTH_TOKEN" .next/static || true)
-          if [ -n "$matches" ]; then
-            echo "::error::Secret value(s) found bundled into the client build, in: $matches"
+          leaked=""
+          for name in TURSO_DATABASE_URL TURSO_AUTH_TOKEN; do
+            value="${!name}"
+            if [ -n "$value" ]; then
+              matches=$(grep -rlF -e "$value" .next/static || true)
+              if [ -n "$matches" ]; then
+                leaked="$leaked $name"
+              fi
+            fi
+          done
+          if [ -n "$leaked" ]; then
+            echo "::error::Secret value(s) found bundled into the client build, for:$leaked"
             exit 1
           fi
 

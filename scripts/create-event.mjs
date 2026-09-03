@@ -34,6 +34,12 @@ export function validateEventInput(input) {
       errors.push(`"${field}" must be a number`);
     }
   }
+  // A zero/negative retentionDays would make purgeContactFields' cutoff resolve to on-or-before
+  // the event date itself, purging next-of-kin/email data before the event has even happened —
+  // silently defeating the emergency-contact purpose those fields exist for (issue #31, Low).
+  if (typeof input.retentionDays === "number" && input.retentionDays <= 0) {
+    errors.push('"retentionDays" must be greater than zero');
+  }
   if (input.venue !== undefined && input.venue !== null && typeof input.venue !== "string") {
     errors.push('"venue" must be a string or null');
   }

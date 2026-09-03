@@ -504,7 +504,20 @@ function MpesaManualStep({
   onChange: (field: ProofFieldName, value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
-  const config = MpesaManualConfigSchema.parse(paymentConfig);
+  // safeParse, not parse (issue #33, Informational I3): paymentConfig is operator-set
+  // (payment_config_json), not attacker-reachable, but a single malformed field would otherwise
+  // throw inside this render and take down the entire public registration page for every
+  // visitor, with no graceful fallback — an availability risk from a simple config typo.
+  const result = MpesaManualConfigSchema.safeParse(paymentConfig);
+  if (!result.success) {
+    return (
+      <p className="mt-1 text-sm text-red-700">
+        Payment isn&apos;t configured correctly for this event — please contact the organiser
+        directly to complete your registration.
+      </p>
+    );
+  }
+  const config = result.data;
   return (
     <>
       <p className="mt-1 text-sm">

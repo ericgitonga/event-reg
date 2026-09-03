@@ -6,6 +6,41 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 adheres to [Semantic Versioning](https://semver.org) (pre-1.0: MINOR = new features/user-facing
 behaviour, PATCH = fixes/docs/housekeeping — see `SKILL.md`).
 
+## [0.10.3] - 2026-09-03
+
+### Security
+
+Remaining Medium/Low/Informational findings from `extras/security-audit.md`, batch-fixed:
+
+- **[Medium, closes #28]** `/privacy`'s Retention section now explicitly discloses that
+  `payer_phone`/`mpesa_code` are retained indefinitely as a financial record — they were never
+  purged by `purgeContactFields`, but the notice previously implied all contact info was deleted.
+- **[Medium, closes #29]** `next.config.ts` now sets `X-Frame-Options: DENY`,
+  `X-Content-Type-Options: nosniff`, and `Referrer-Policy: strict-origin-when-cross-origin` on
+  every route — closes a clickjacking gap on `/checkin`/`/payments`' PIN-entry forms. A full CSP
+  is a separate, larger effort, deliberately out of scope here.
+- **[Low, closes #30]** `export/registrations` now wraps `request.json()` in
+  `.catch(() => ({ pin: undefined }))`, matching `checkin/verify-pin`/`payments/verify-pin` —
+  a malformed body is now a clean 401 instead of a generic 500.
+- **[Low, closes #31]** `scripts/create-event.mjs` now rejects `retentionDays <= 0`, preventing a
+  typo from making the retention purge fire immediately (or before the event has happened).
+- **[Low, closes #32]** CI's client-bundle secret-leak check now loops over every secret the job
+  has access to (`TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`) instead of a single hardcoded name.
+- **[Informational, closes #33]** `RegistrationForm.tsx`'s `MpesaManualStep` now `safeParse`s
+  `payment_config_json` instead of a hard `.parse()` — a malformed operator config now shows a
+  "contact the organiser" message instead of crashing the entire public registration page.
+
+New coverage: e2e assertions for the privacy-notice wording and the new security headers, a full
+`export/registrations` route-test suite (previously untested), and `create-event.test.mjs` cases
+for the `retentionDays` bound.
+
+**Verified against a real production build and the real Turso-backed dev database**: security
+headers confirmed present on `/checkin`; privacy page confirmed to include the new disclosure;
+`export/registrations` confirmed to return 401 (not 500) on a malformed body;
+`MpesaManualConfigSchema.safeParse` confirmed to correctly detect a malformed config.
+
+tag: `v0.10.3`
+
 ## [0.10.2] - 2026-09-03
 
 ### Security
