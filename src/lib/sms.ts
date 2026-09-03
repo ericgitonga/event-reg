@@ -14,12 +14,16 @@ export function toSasaSignalPhone(phone: string): string {
   return phone.startsWith("0") ? `+254${phone.slice(1)}` : phone;
 }
 
+// Never log `phone`, `message`, or the provider's response text on any path below — all three
+// can carry or embed the registrant's name/phone number (issue #25: a High finding, since the
+// `[sms:skipped]` branch is what actually runs in production today, with neither
+// SASASIGNAL_API_TOKEN nor RESEND_API_KEY set). Only the outcome and, where useful, an HTTP
+// status code get logged — matching the "never PII" discipline already followed by
+// checkin/mark, payments/mark, and payments/delete.
 export async function sendSmsConfirmation(phone: string, message: string): Promise<boolean> {
   const token = process.env.SASASIGNAL_API_TOKEN;
   if (!token) {
-    console.log(
-      `[sms:skipped] no SASASIGNAL_API_TOKEN configured — would have sent to ${phone}: ${message}`,
-    );
+    console.log("[sms:skipped] no SASASIGNAL_API_TOKEN configured");
     return false;
   }
 
@@ -40,21 +44,15 @@ export async function sendSmsConfirmation(phone: string, message: string): Promi
       body,
     });
 
-    const text = await response.text().catch(() => "");
-
     if (!response.ok) {
-      console.log(
-        `[sms:failed] SasaSignal responded ${response.status} sending to ${phone}: ${text}`,
-      );
+      console.log(`[sms:failed] SasaSignal responded ${response.status}`);
       return false;
     }
 
-    console.log(`[sms:accepted] SasaSignal accepted a send to ${phone}: ${text}`);
+    console.log("[sms:accepted] SasaSignal accepted the send");
     return true;
   } catch (err) {
-    console.log(
-      `[sms:error] SasaSignal request failed sending to ${phone}: ${(err as Error).message}`,
-    );
+    console.log(`[sms:error] SasaSignal request failed: ${(err as Error).message}`);
     return false;
   }
 }

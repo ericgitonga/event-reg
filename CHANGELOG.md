@@ -6,6 +6,27 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 adheres to [Semantic Versioning](https://semver.org) (pre-1.0: MINOR = new features/user-facing
 behaviour, PATCH = fixes/docs/housekeeping — see `SKILL.md`).
 
+## [0.10.2] - 2026-09-03
+
+### Security
+
+- **[High, closes #25]** `sendSmsConfirmation`/`sendEmailConfirmation` (`src/lib/sms.ts`,
+  `src/lib/email.ts`) logged the recipient's phone number/email, and — for SMS — the full
+  message text (which embeds the registrant's name), on every branch. Since neither
+  `SASASIGNAL_API_TOKEN` nor `RESEND_API_KEY` is set on this deployment, the `[sms:skipped]`/
+  `[email:skipped]` branches were what actually ran on every registration, writing PII to
+  plaintext application logs on every single `completeRegistration` call. Every log line across
+  both files now reports only the outcome (and, for SMS, the provider's HTTP status where
+  useful) — never the recipient or message content — matching the "never PII" discipline already
+  followed by `checkin/mark`/`payments/mark`/`payments/delete`.
+- 8 new tests (`sms.test.ts`, new `email.test.ts`) spy on `console.log` across every branch of
+  both functions and assert the recipient/name/message never appear in any logged line.
+
+**Verified with real function calls and real console output** (`npx tsx`): confirmed neither
+`[sms:skipped]` nor `[email:skipped]` includes the phone number, name, or email address.
+
+tag: `v0.10.2`
+
 ## [0.10.1] - 2026-09-03
 
 ### Security
