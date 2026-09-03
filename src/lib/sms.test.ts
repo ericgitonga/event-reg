@@ -83,4 +83,57 @@ describe("sendSmsConfirmation", () => {
       expect(result).toBe(false);
     });
   });
+
+  // Regression coverage for issue #25 (High, extras/security-audit.md finding H1): every branch
+  // used to log the recipient's phone number, and the skipped/failed branches also logged the
+  // full message text (which embeds the registrant's name) or the provider's raw response.
+  describe("never logs the phone number or message content (issue #25)", () => {
+    const PHONE = "0712345678";
+    const MESSAGE = "Hi Jane Doe, your registration for Test Event is confirmed. See you there!";
+
+    function assertNoPiiLogged(logSpy: ReturnType<typeof vi.spyOn>) {
+      for (const call of logSpy.mock.calls) {
+        const line = call.join(" ");
+        expect(line).not.toContain(PHONE);
+        expect(line).not.toContain("Jane Doe");
+        expect(line).not.toContain(MESSAGE);
+      }
+      expect(logSpy).toHaveBeenCalled(); // sanity: something was actually logged
+    }
+
+    it("on the skipped (no API token) branch — the branch that actually runs in production today", async () => {
+      delete process.env.SASASIGNAL_API_TOKEN;
+      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      await sendSmsConfirmation(PHONE, MESSAGE);
+      assertNoPiiLogged(logSpy);
+      logSpy.mockRestore();
+    });
+
+    it("on the accepted branch", async () => {
+      process.env.SASASIGNAL_API_TOKEN = "test-token";
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("recipient echoed back here", { status: 200 })));
+      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      await sendSmsConfirmation(PHONE, MESSAGE);
+      assertNoPiiLogged(logSpy);
+      logSpy.mockRestore();
+    });
+
+    it("on the provider-failure branch", async () => {
+      process.env.SASASIGNAL_API_TOKEN = "test-token";
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("recipient echoed back here", { status: 500 })));
+      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      await sendSmsConfirmation(PHONE, MESSAGE);
+      assertNoPiiLogged(logSpy);
+      logSpy.mockRestore();
+    });
+
+    it("on the request-threw branch", async () => {
+      process.env.SASASIGNAL_API_TOKEN = "test-token";
+      vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
+      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      await sendSmsConfirmation(PHONE, MESSAGE);
+      assertNoPiiLogged(logSpy);
+      logSpy.mockRestore();
+    });
+  });
 });
