@@ -3,7 +3,8 @@
 -- directly against the shared main/preview/prod database and the CI-only database, once each;
 -- this file's `CREATE TABLE` definition only matters again if either database is ever recreated
 -- from scratch. `registrations`' mpesa_code/payer_phone/sms_status were added this way (issue
--- #5, 2026-09-03) after the table already existed with issue #4's original column set.
+-- #5, 2026-09-03) after the table already existed with issue #4's original column set;
+-- `events.session_secret` was added the same way (issue #24, 2026-09-03).
 --
 -- One row per event this platform has ever run. `config_json` and `payment_config_json` are the
 -- escape hatch for everything that doesn't deserve its own column yet — see
@@ -23,6 +24,12 @@ CREATE TABLE IF NOT EXISTS events (
   payment_config_json TEXT NOT NULL DEFAULT '{}',
   retention_days INTEGER NOT NULL,
   organiser_pin TEXT NOT NULL,
+  -- Random, high-entropy signing key for organiser session tokens (src/lib/auth.ts) — deliberately
+  -- NOT derived from organiser_pin, which is short and human-memorable and would otherwise make
+  -- every session token forgeable offline by brute-forcing the PIN's tiny keyspace against the
+  -- HMAC (issue #24). Generated once at event-creation time (scripts/create-event.mjs), never
+  -- shown to anyone, and never used for anything except signing/verifying session tokens.
+  session_secret TEXT NOT NULL,
   data_controller_name TEXT,
   data_controller_contact TEXT,
   config_json TEXT NOT NULL DEFAULT '{}',

@@ -28,12 +28,22 @@ export function verifyCronSecret(authHeader: string | null): boolean {
 }
 
 // Short-lived, server-issued organiser session (ported from busherian-hike issue #27). Stateless:
-// an HMAC-signed expiry, keyed on the active event's own PIN (so rotating that event's PIN also
-// invalidates every existing session for it) — no separate session table/store. The token also
-// carries which event it was issued for, so a session unlocked against one event's PIN can never
-// be replayed against a different event's data if the active event ever changes mid-session
-// (generalize.md §7 — the load-bearing change from busherian-hike's single-event version, which
-// only ever had one event to worry about).
+// an HMAC-signed expiry, keyed on the active event's own `sessionSecret` (so rotating that event's
+// session secret also invalidates every existing session for it) — no separate session table/
+// store. The token also carries which event it was issued for, so a session unlocked against one
+// event's PIN can never be replayed against a different event's data if the active event ever
+// changes mid-session (generalize.md §7 — the load-bearing change from busherian-hike's
+// single-event version, which only ever had one event to worry about).
+//
+// Deliberately signed with `events.session_secret`, NOT `organiser_pin` (issue #24 — a Critical
+// finding in extras/security-audit.md): the PIN is short and human-memorable by design (typed by
+// hand at a physical check-in table), so using it as the HMAC key made every session token
+// forgeable offline by brute-forcing that tiny keyspace — and the routes that trust this token
+// (checkin/mark, payments/mark, payments/delete, payments/resend-sms) apply no PIN-guessing rate
+// limit of their own, since they assume the cookie itself can't be forged. `session_secret` is
+// random, high-entropy, generated once at event-creation time, and never shown to anyone
+// (including the organiser) — its only job is signing/verifying this token.
+//
 // Shared by every PIN-gated organiser area (check-in, payments) via its own separately-scoped
 // cookie; the token itself doesn't encode which area it's for, only that the PIN was verified
 // within the TTL, for which event.
@@ -43,19 +53,19 @@ const ORGANISER_SESSION_TTL_SECONDS = 4 * 60 * 60; // long enough to span one ev
 export const CHECKIN_SESSION_MAX_AGE_SECONDS = ORGANISER_SESSION_TTL_SECONDS;
 export const PAYMENTS_SESSION_MAX_AGE_SECONDS = ORGANISER_SESSION_TTL_SECONDS;
 
-function signSessionPayload(eventId: string, expiresAt: number, secret: string): string {
-  return createHmac("sha256", secret).update(`${eventId}.${expiresAt}`).digest("hex");
+function signSessionPayload(eventId: string, expiresAt: number, sessionSecret: string): string {
+  return createHmac("sha256", sessionSecret).update(`${eventId}.${expiresAt}`).digest("hex");
 }
 
-export function createOrganiserSessionToken(eventId: string, organiserPin: string): string {
+export function createOrganiserSessionToken(eventId: string, sessionSecret: string): string {
   const expiresAt = Math.floor(Date.now() / 1000) + ORGANISER_SESSION_TTL_SECONDS;
-  return `${eventId}.${expiresAt}.${signSessionPayload(eventId, expiresAt, organiserPin)}`;
+  return `${eventId}.${expiresAt}.${signSessionPayload(eventId, expiresAt, sessionSecret)}`;
 }
 
 export function verifyOrganiserSessionToken(
   token: string | undefined | null,
   eventId: string,
-  organiserPin: string,
+  sessionSecret: string,
 ): boolean {
   if (!token) return false;
 
@@ -65,7 +75,7 @@ export function verifyOrganiserSessionToken(
 
   const expiresAt = Number(expiresAtRaw);
   if (!Number.isInteger(expiresAt)) return false;
-  if (!safeEqual(signature, signSessionPayload(tokenEventId, expiresAt, organiserPin))) return false;
+  if (!safeEqual(signature, signSessionPayload(tokenEventId, expiresAt, sessionSecret))) return false;
 
   return expiresAt > Math.floor(Date.now() / 1000);
 }
