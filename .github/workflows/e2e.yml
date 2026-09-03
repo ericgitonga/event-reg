@@ -3,6 +3,15 @@ name: E2E
 # Gates a PR on the golden-path E2E suite (e2e/) before it can merge to main. Runs a locally
 # built-and-started server in the CI runner, not a live Vercel Preview deployment — avoids
 # depending on Vercel's own deployment-webhook timing.
+#
+# CI runs against its own dedicated Turso database ("event-reg-ci", issue #9) — provisioned via
+# the same Vercel Marketplace Turso integration as the app's own database, connected only to the
+# unused "development" Vercel environment so it's fully decoupled from Preview/Production.
+# Credentials live as repository secrets (TURSO_DATABASE_URL/TURSO_AUTH_TOKEN), not pulled from
+# Vercel at all — matches busherian-hike issue #28's precedent, avoiding both a VERCEL_TOKEN
+# dependency and any risk of CI ever touching real registrant data. The database already has
+# `db/schema.sql` applied and one seed event (`e2e/fixtures/event.json`, id "e2e-fixture")
+# inserted — both one-time setup outside this workflow, not repeated on every run.
 
 on:
   pull_request:
@@ -18,9 +27,41 @@ jobs:
         with:
           node-version: 22
 
-      - run: npm ci
+      # --ignore-scripts: blocks a compromised/typosquatted transitive dependency's postinstall
+      # hook from running arbitrary code during install, before secrets are written below —
+      # same reasoning as busherian-hike issue #26/#28.
+      - run: npm ci --ignore-scripts
+
+      - name: Write .env.local from repository secrets
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+        run: |
+          cat > .env.local <<EOF
+          TURSO_DATABASE_URL=$TURSO_DATABASE_URL
+          TURSO_AUTH_TOKEN=$TURSO_AUTH_TOKEN
+          ACTIVE_EVENT_SLUG=e2e-fixture
+          EOF
+
+      - name: Apply pending migrations
+        run: npm run db:migrate
 
       - run: npm run build
+
+      - name: Check no secret leaked into the client bundle
+        # Cheap, mechanical guard against a future regression (e.g. a server-only module getting
+        # imported into a Client Component) — same reasoning as busherian-hike issue #40. -l
+        # lists only matching *filenames*, never the matched line/content, so this is safe to
+        # print even on a hit; GitHub Actions also automatically masks this secret value anywhere
+        # it'd appear in logs, as a second layer.
+        env:
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+        run: |
+          matches=$(grep -rlF -e "$TURSO_AUTH_TOKEN" .next/static || true)
+          if [ -n "$matches" ]; then
+            echo "::error::Secret value(s) found bundled into the client build, in: $matches"
+            exit 1
+          fi
 
       - name: Start server
         # Output redirected to a file: GitHub Actions stops capturing a backgrounded (`&`)

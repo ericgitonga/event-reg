@@ -6,6 +6,34 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 adheres to [Semantic Versioning](https://semver.org) (pre-1.0: MINOR = new features/user-facing
 behaviour, PATCH = fixes/docs/housekeeping — see `SKILL.md`).
 
+## [0.8.0] - 2026-09-03
+
+### Added
+
+- Homepage (`/`) now wired to the active event for the first time: renders a config-driven
+  landing hero, registration form, partnership banner, and sponsor strip instead of the
+  create-next-app placeholder. `RegistrationForm`/`validateRegistration`/`completeRegistration`
+  (built in #4/#5) are reachable from a real route for the first time (closes #9)
+- `LandingHero.tsx`, `PartnershipBanner.tsx`, `SponsorStrip.tsx`, `SlotsRemaining.tsx` — ported
+  from busherian-hike, generalized into thin templates over `config.landing`
+  (`src/lib/landing-config.ts`) and the active event's own columns (name/date/venue/fee/
+  currency), rather than literal JSX strings for one hardcoded event
+- `generateMetadata` on the homepage sets the page `<title>`/description from the active
+  event's name/tagline
+- CI now has its own dedicated Turso database (`event-reg-ci`, connected only to the unused
+  `development` Vercel environment) so the e2e suite can exercise a real active-event page
+  render — matches busherian-hike issue #28's precedent. New `e2e/fixtures/event.json` seed
+  event backs three new specs (`test_landing_hero.py`, `test_partnership_banner.py`,
+  `test_sponsor_strip.py`), all reading that fixture at test time rather than hardcoding its
+  values
+
+**Verified against the live CI Turso database and a real production build**: pointed a local
+build at `event-reg-ci`'s credentials, ran `npm run build && npm start`, then the full
+`e2e/run.py` suite — 12/12 passing, including the three new landing-page specs alongside the
+existing check-in/payments/smoke coverage.
+
+tag: `v0.8.0`
+
 ## [0.7.0] - 2026-09-03
 
 ### Added

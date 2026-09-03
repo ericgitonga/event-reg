@@ -17,7 +17,12 @@
   "dataControllerName": "Example Organiser",
   "dataControllerContact": "organiser@example.com",
   "config": {
-    "tagline": "Replace this with your event's copy.",
+    "landing": {
+      "tagline": "Replace this with your event's copy.",
+      "hostedBy": "Hosted by the organising committee",
+      "highlights": ["Replace with a highlight", "Replace with another highlight"],
+      "pricingCardInclusions": ["Entry", "Replace with what the fee actually includes"]
+    },
     "fields": [
       {
         "key": "ageGroup",

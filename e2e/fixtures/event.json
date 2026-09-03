@@ -1,0 +1,41 @@
+{
+  "id": "e2e-fixture",
+  "slug": "e2e-fixture",
+  "name": "E2E Fixture Event",
+  "eventDate": "2026-12-15",
+  "venue": "Test Venue",
+  "capacityCap": 5,
+  "currency": "KES",
+  "perHeadFee": 500,
+  "paymentProvider": "mpesa_manual",
+  "paymentConfig": {
+    "recipientPhone": "0700000001",
+    "recipientName": "CI Fixture Organiser"
+  },
+  "retentionDays": 1,
+  "organiserPin": "1234",
+  "dataControllerName": "CI Fixture Organiser",
+  "dataControllerContact": "ci-fixture@example.com",
+  "config": {
+    "landing": {
+      "tagline": "E2E fixture tagline",
+      "hostedBy": "Hosted by the CI fixture host",
+      "highlights": ["Fixture highlight one", "Fixture highlight two"],
+      "pricingCardInclusions": ["Fixture inclusion"],
+      "partnershipSentence": "In partnership with Fixture Partner Co",
+      "sponsors": [
+        { "name": "Fixture Sponsor One", "linkHref": "https://fixture-sponsor-one.example" },
+        { "name": "Fixture Sponsor Two" }
+      ]
+    },
+    "fields": [
+      {
+        "key": "shirtSize",
+        "label": "Shirt size",
+        "type": "select",
+        "required": true,
+        "options": ["S", "M", "L"]
+      }
+    ]
+  }
+}
