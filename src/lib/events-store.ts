@@ -17,6 +17,7 @@ export type EventRow = {
   payment_config_json: string;
   retention_days: number;
   organiser_pin: string;
+  session_secret: string;
   data_controller_name: string | null;
   data_controller_contact: string | null;
   config_json: string;
@@ -41,6 +42,10 @@ export type Event = {
   paymentConfig: Record<string, unknown>;
   retentionDays: number;
   organiserPin: string;
+  // Session-token signing key (issue #24) — never derived from organiserPin, never sent to a
+  // client. Only ever read by src/lib/auth.ts's createOrganiserSessionToken/
+  // verifyOrganiserSessionToken; nothing else should reference it.
+  sessionSecret: string;
   dataControllerName: string | null;
   dataControllerContact: string | null;
   config: Record<string, unknown>;
@@ -61,6 +66,7 @@ export function parseEventRow(row: EventRow): Event {
     paymentConfig: JsonObjectSchema.parse(JSON.parse(row.payment_config_json)),
     retentionDays: row.retention_days,
     organiserPin: row.organiser_pin,
+    sessionSecret: row.session_secret,
     dataControllerName: row.data_controller_name,
     dataControllerContact: row.data_controller_contact,
     config: JsonObjectSchema.parse(JSON.parse(row.config_json)),

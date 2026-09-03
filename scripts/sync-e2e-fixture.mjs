@@ -5,6 +5,7 @@
 // upserts by id, so a stray local run against a database with other events' rows is unaffected.
 //
 //   node --env-file=.env.local scripts/sync-e2e-fixture.mjs
+import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createClient } from "@libsql/client";
@@ -13,6 +14,10 @@ import { buildEventArgs, validateEventInput } from "./create-event.mjs";
 async function main() {
   const fixturePath = fileURLToPath(new URL("../e2e/fixtures/event.json", import.meta.url));
   const input = JSON.parse(readFileSync(fixturePath, "utf-8"));
+  // Fresh random secret on every sync (the fixture file doesn't pin one) — harmless for CI,
+  // since nothing depends on a session token surviving across separate CI runs. Same reasoning
+  // as create-event.mjs's own auto-generation (issue #24).
+  input.sessionSecret ??= randomBytes(32).toString("hex");
   validateEventInput(input);
 
   const client = createClient({
@@ -23,9 +28,9 @@ async function main() {
   await client.execute({
     sql: `INSERT INTO events (
       id, slug, name, event_date, venue, capacity_cap, currency, per_head_fee,
-      payment_provider, payment_config_json, retention_days, organiser_pin,
+      payment_provider, payment_config_json, retention_days, organiser_pin, session_secret,
       data_controller_name, data_controller_contact, config_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT (id) DO UPDATE SET
       slug = excluded.slug,
       name = excluded.name,
@@ -38,6 +43,7 @@ async function main() {
       payment_config_json = excluded.payment_config_json,
       retention_days = excluded.retention_days,
       organiser_pin = excluded.organiser_pin,
+      session_secret = excluded.session_secret,
       data_controller_name = excluded.data_controller_name,
       data_controller_contact = excluded.data_controller_contact,
       config_json = excluded.config_json`,

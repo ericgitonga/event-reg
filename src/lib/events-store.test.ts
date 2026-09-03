@@ -21,6 +21,7 @@ const BASE_ROW: EventRow = {
   payment_config_json: JSON.stringify({ recipientPhone: "0723893192" }),
   retention_days: 30,
   organiser_pin: "1234",
+  session_secret: "a".repeat(64),
   data_controller_name: "Jessica Rutto",
   data_controller_contact: "jessica@example.com",
   config_json: JSON.stringify({ tagline: "Watu!!" }),
@@ -33,6 +34,12 @@ describe("parseEventRow", () => {
     expect(event.eventDate).toBe("2026-09-19");
     expect(event.capacityCap).toBe(100);
     expect(event.perHeadFee).toBe(1500);
+  });
+
+  it("maps session_secret separately from organiser_pin — never derives one from the other", () => {
+    const event = parseEventRow(BASE_ROW);
+    expect(event.sessionSecret).toBe("a".repeat(64));
+    expect(event.sessionSecret).not.toBe(event.organiserPin);
   });
 
   it("parses config_json and payment_config_json into objects", () => {

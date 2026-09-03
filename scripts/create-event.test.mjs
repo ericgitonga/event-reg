@@ -54,4 +54,18 @@ describe("validateEventInput", () => {
       /"config" must be an object/,
     );
   });
+
+  it("accepts a config with no sessionSecret at all — main() auto-generates one (issue #24)", () => {
+    expect(() => validateEventInput(VALID_INPUT)).not.toThrow();
+  });
+
+  it("accepts a config that supplies its own non-empty sessionSecret", () => {
+    expect(() => validateEventInput({ ...VALID_INPUT, sessionSecret: "a".repeat(64) })).not.toThrow();
+  });
+
+  it("rejects an empty-string sessionSecret when one is explicitly provided", () => {
+    expect(() => validateEventInput({ ...VALID_INPUT, sessionSecret: "" })).toThrow(
+      /"sessionSecret" must be a non-empty string/,
+    );
+  });
 });

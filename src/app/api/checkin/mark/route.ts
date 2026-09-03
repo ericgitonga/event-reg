@@ -2,18 +2,29 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { getActiveEvent } from "@/lib/events-store";
 import { CHECKIN_SESSION_COOKIE, verifyOrganiserSessionToken } from "@/lib/auth";
+import { clientIpFromHeaders, isLockedOut, PIN_AUTH_RATE_LIMIT, recordAuthFailure } from "@/lib/rate-limit";
 import { markCheckedIn } from "@/lib/registrations-store";
 
 export const dynamic = "force-dynamic";
 
-// Auth is the session cookie only — no PIN in the body, so no rate limiting is needed here
-// either: there's no secret to guess against a signed session token the way there was against a
-// PIN. Called once per attendee scanned by an already-authenticated organiser, so this needs to
-// support real check-in throughput with no artificial cap.
+const ROUTE = "checkin-mark";
+
+// Auth is the session cookie only — no PIN in the body — but a *forged* session cookie is still
+// a secret-guessing attack in disguise (issue #24: the old organiser_pin-as-HMAC-key scheme made
+// forging one an offline computation), so this rate-limits repeated verification *failures* the
+// same way verify-pin does. A legitimate organiser's stream of successful calls (this route's
+// real throughput need — called once per attendee scanned) never touches the counter, since only
+// `recordAuthFailure` increments it, never a successful verification.
 export async function POST(request: Request) {
   const event = await getActiveEvent();
+  const ip = clientIpFromHeaders(request.headers);
+  if (await isLockedOut(ROUTE, ip, PIN_AUTH_RATE_LIMIT)) {
+    return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
+  }
+
   const cookieStore = await cookies();
-  if (!verifyOrganiserSessionToken(cookieStore.get(CHECKIN_SESSION_COOKIE)?.value, event.id, event.organiserPin)) {
+  if (!verifyOrganiserSessionToken(cookieStore.get(CHECKIN_SESSION_COOKIE)?.value, event.id, event.sessionSecret)) {
+    await recordAuthFailure(ROUTE, ip, PIN_AUTH_RATE_LIMIT);
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 

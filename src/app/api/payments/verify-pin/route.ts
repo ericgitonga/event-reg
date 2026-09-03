@@ -22,7 +22,7 @@ export async function POST(request: Request) {
 
   // Already has a valid session for this event (e.g. the payments page's "Refresh list") — skip
   // PIN verification and rate limiting entirely, no need to resend the secret.
-  if (verifyOrganiserSessionToken(existingSession, event.id, event.organiserPin)) {
+  if (verifyOrganiserSessionToken(existingSession, event.id, event.sessionSecret)) {
     const registrations = await getRegistrationsForPayments(event.id);
     return NextResponse.json({ ok: true, registrations });
   }
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
 
   const registrations = await getRegistrationsForPayments(event.id);
   const response = NextResponse.json({ ok: true, registrations });
-  response.cookies.set(PAYMENTS_SESSION_COOKIE, createOrganiserSessionToken(event.id, event.organiserPin), {
+  response.cookies.set(PAYMENTS_SESSION_COOKIE, createOrganiserSessionToken(event.id, event.sessionSecret), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",

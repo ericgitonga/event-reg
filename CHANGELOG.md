@@ -6,6 +6,37 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 adheres to [Semantic Versioning](https://semver.org) (pre-1.0: MINOR = new features/user-facing
 behaviour, PATCH = fixes/docs/housekeeping — see `SKILL.md`).
 
+## [0.10.1] - 2026-09-03
+
+### Security
+
+- **[Critical, closes #24]** Organiser session tokens were HMAC-signed using `organiser_pin`
+  itself as the signing key. Since every example/seed config in this repo uses a 4-digit numeric
+  PIN, and the routes that trust the session cookie (`checkin/mark`, `payments/mark`,
+  `payments/delete`, `payments/resend-sms`) applied no rate limiting at all, an attacker could
+  forge a valid session for any candidate PIN entirely offline and use those routes as an
+  unthrottled oracle — fully bypassing the PIN rate limiting on `/verify-pin`. Fixed by adding a
+  new `events.session_secret` column (random, high-entropy, generated once at event-creation
+  time, unrelated to `organiser_pin`) and signing/verifying every session token with that
+  instead. `scripts/migrate.mjs` now idempotently adds this column and backfills a fresh random
+  secret per existing event row on every run, so no separate manual migration step is needed
+  against any already-provisioned database (including CI's).
+- Defense in depth: `checkin/mark`, `payments/mark`, `payments/delete`, `payments/resend-sms` now
+  rate-limit repeated session-verification *failures* the same way `/verify-pin` already
+  rate-limits PIN guesses (5/15min/IP) — a legitimate organiser's successful calls never touch
+  the counter, only failures do, so this doesn't affect real check-in/payments throughput.
+- 28 new tests: a regression test demonstrating the old vulnerability's exact mechanism (every
+  4-digit secret is enumerable in milliseconds), plus route-level integration tests for all 6
+  session-cookie-gated routes covering forged-token rejection, the new rate limiting, and (for
+  the two `verify-pin` routes) that issued cookies stay `httpOnly`/`sameSite=strict`.
+
+**Verified against a real production build and the real (Turso-backed) dev database**: the exact
+exploit from `extras/security-audit.md` finding C1 (a token forged by HMAC-signing with the real
+`organiser_pin`) is now rejected with 401; a real PIN login still works end-to-end; 6 rapid
+bad-cookie attempts against `payments/mark` correctly trip the new 429 lockout.
+
+tag: `v0.10.1`
+
 ## [0.10.0] - 2026-09-03
 
 ### Added
