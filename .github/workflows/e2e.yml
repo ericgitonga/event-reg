@@ -9,9 +9,11 @@ name: E2E
 # unused "development" Vercel environment so it's fully decoupled from Preview/Production.
 # Credentials live as repository secrets (TURSO_DATABASE_URL/TURSO_AUTH_TOKEN), not pulled from
 # Vercel at all — matches busherian-hike issue #28's precedent, avoiding both a VERCEL_TOKEN
-# dependency and any risk of CI ever touching real registrant data. The database already has
-# `db/schema.sql` applied and one seed event (`e2e/fixtures/event.json`, id "e2e-fixture")
-# inserted — both one-time setup outside this workflow, not repeated on every run.
+# dependency and any risk of CI ever touching real registrant data. `db/schema.sql` and the seed
+# event (`e2e/fixtures/event.json`, id "e2e-fixture") are both applied on every run (schema via
+# `db:migrate`, seed via `db:sync-e2e-fixture`'s upsert) rather than as one-time manual setup —
+# an edit to the fixture file (e.g. issue #10 adding `config.legal`) would otherwise silently
+# drift from what's actually seeded until someone happened to patch the row by hand.
 
 on:
   pull_request:
@@ -45,6 +47,9 @@ jobs:
 
       - name: Apply pending migrations
         run: npm run db:migrate
+
+      - name: Sync e2e fixture event
+        run: npm run db:sync-e2e-fixture
 
       - run: npm run build
 

@@ -47,6 +47,28 @@ export function validateEventInput(input) {
   }
 }
 
+// Column order shared with scripts/sync-e2e-fixture.mjs's upsert, so the two scripts' INSERTs
+// can never drift apart on which columns a JSON config file maps to.
+export function buildEventArgs(input) {
+  return [
+    input.id,
+    input.slug,
+    input.name,
+    input.eventDate,
+    input.venue ?? null,
+    input.capacityCap,
+    input.currency ?? "KES",
+    input.perHeadFee,
+    input.paymentProvider,
+    JSON.stringify(input.paymentConfig ?? {}),
+    input.retentionDays,
+    input.organiserPin,
+    input.dataControllerName ?? null,
+    input.dataControllerContact ?? null,
+    JSON.stringify(input.config ?? {}),
+  ];
+}
+
 async function main() {
   const configPath = process.argv[2];
   if (!configPath) {
@@ -68,23 +90,7 @@ async function main() {
       payment_provider, payment_config_json, retention_days, organiser_pin,
       data_controller_name, data_controller_contact, config_json
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    args: [
-      input.id,
-      input.slug,
-      input.name,
-      input.eventDate,
-      input.venue ?? null,
-      input.capacityCap,
-      input.currency ?? "KES",
-      input.perHeadFee,
-      input.paymentProvider,
-      JSON.stringify(input.paymentConfig ?? {}),
-      input.retentionDays,
-      input.organiserPin,
-      input.dataControllerName ?? null,
-      input.dataControllerContact ?? null,
-      JSON.stringify(input.config ?? {}),
-    ],
+    args: buildEventArgs(input),
   });
 
   console.log(`Created event "${input.id}" (slug: ${input.slug}).`);

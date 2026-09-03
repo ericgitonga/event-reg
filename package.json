@@ -1,6 +1,6 @@
 {
   "name": "event-reg",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "db:migrate": "node --env-file=.env.local scripts/migrate.mjs",
-    "db:create-event": "node --env-file=.env.local scripts/create-event.mjs"
+    "db:create-event": "node --env-file=.env.local scripts/create-event.mjs",
+    "db:sync-e2e-fixture": "node --env-file=.env.local scripts/sync-e2e-fixture.mjs"
   },
   "dependencies": {
     "@libsql/client": "^0.18.0",
