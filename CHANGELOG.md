@@ -6,6 +6,25 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 adheres to [Semantic Versioning](https://semver.org) (pre-1.0: MINOR = new features/user-facing
 behaviour, PATCH = fixes/docs/housekeeping — see `SKILL.md`).
 
+## [0.9.0] - 2026-09-03
+
+### Added
+
+- `/terms` and `/privacy` pages, ported from busherian-hike as narrowly-templated pages (closes
+  #10): the fixed 18-section waiver/privacy-notice prose is kept as-is, with only the volatile
+  fields interpolated — event name/date/venue and the DPA controller's name/contact/retention
+  come from the active event's own columns, and the entity/organiser name+email the waiver is
+  "FOR" comes from a new `config.legal` (`src/lib/legal-config.ts`). Unlike `config.landing`/
+  `config.fields`, every `config.legal` field is required with no default, so a misconfigured
+  event's legal pages fail loudly at render time rather than publishing incomplete waiver text
+- `/privacy`'s "What we collect" section is now generic rather than naming specific fields,
+  since which custom fields an event asks for is itself config-driven (`config.fields`) and
+  varies per event
+- `e2e/test_terms.py`, `e2e/test_privacy.py` — read `e2e/fixtures/event.json` at test time,
+  which now also carries a `config.legal` block; `scripts/example-event.json` updated to match
+
+tag: `v0.9.0`
+
 ## [0.8.0] - 2026-09-03
 
 ### Added

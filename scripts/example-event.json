@@ -17,6 +17,11 @@
   "dataControllerName": "Example Organiser",
   "dataControllerContact": "organiser@example.com",
   "config": {
+    "legal": {
+      "entityName": "Replace with the activity/business name the waiver is FOR",
+      "organiserName": "Replace with the organiser's name",
+      "organiserEmail": "organiser@example.com"
+    },
     "landing": {
       "tagline": "Replace this with your event's copy.",
       "hostedBy": "Hosted by the organising committee",

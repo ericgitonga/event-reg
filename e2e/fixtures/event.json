@@ -17,6 +17,11 @@
   "dataControllerName": "CI Fixture Organiser",
   "dataControllerContact": "ci-fixture@example.com",
   "config": {
+    "legal": {
+      "entityName": "Fixture Events Ltd",
+      "organiserName": "Fixture Organising Committee",
+      "organiserEmail": "legal@fixture-events.example"
+    },
     "landing": {
       "tagline": "E2E fixture tagline",
       "hostedBy": "Hosted by the CI fixture host",
