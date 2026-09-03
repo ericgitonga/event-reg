@@ -89,6 +89,98 @@ export async function updateSmsStatus(registrationId: string, status: SmsStatus)
   });
 }
 
+export type PaymentListRow = {
+  id: string;
+  name: string;
+  guestCount: number;
+  customFields: Record<string, unknown>;
+  paid: boolean;
+  mpesaCode: string | null;
+  payerPhone: string | null;
+  smsStatus: SmsStatus | null;
+};
+
+// For the PIN-gated "mark paid" list — deliberately narrower than getAllRegistrations: no
+// next-of-kin name/contact or email, so this can't be used as a backdoor around the full
+// export's stricter PIN re-check while still giving whoever's collecting payment enough (name,
+// custom fields, guest count, the payment proof already on file) to find the right row and
+// cross-check it against what they actually received.
+export async function getRegistrationsForPayments(eventId: string): Promise<PaymentListRow[]> {
+  const result = await db.execute({
+    sql: `SELECT id, name, guest_count, custom_fields_json, paid, mpesa_code, payer_phone, sms_status
+          FROM registrations WHERE event_id = ? ORDER BY name`,
+    args: [eventId],
+  });
+  return result.rows.map((row) => ({
+    id: String(row.id),
+    name: String(row.name),
+    guestCount: Number(row.guest_count),
+    customFields: JSON.parse(String(row.custom_fields_json)),
+    paid: Number(row.paid) === 1,
+    mpesaCode: row.mpesa_code ? String(row.mpesa_code) : null,
+    payerPhone: row.payer_phone ? String(row.payer_phone) : null,
+    smsStatus: row.sms_status ? (String(row.sms_status) as SmsStatus) : null,
+  }));
+}
+
+// Idempotent, same reasoning as markCheckedIn: guards on paid = 0 so marking an already-paid row
+// again is a silent no-op rather than clobbering the original paid_at. Scoped to event_id as
+// defense in depth, same as markCheckedIn.
+export async function markPaid(eventId: string, registrationId: string): Promise<boolean> {
+  const result = await db.execute({
+    sql: `UPDATE registrations
+          SET paid = 1, paid_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+          WHERE id = ? AND event_id = ? AND paid = 0`,
+    args: [registrationId, eventId],
+  });
+  return result.rowsAffected > 0;
+}
+
+// Full rows, including next-of-kin numbers — gated behind a freshly re-verified PIN at the route
+// level (see src/app/api/export/registrations/route.ts), never called from anywhere else.
+export async function getAllRegistrations(eventId: string): Promise<Record<string, unknown>[]> {
+  const result = await db.execute({
+    sql: "SELECT * FROM registrations WHERE event_id = ? ORDER BY created_at",
+    args: [eventId],
+  });
+  return result.rows.map((row) => ({ ...row }));
+}
+
+// Irreversible, unlike every other mutation in this file — used for a mistaken/duplicate
+// registration removed at the organiser's request. No capacity bookkeeping needed: getPaidCount()
+// sums live from `paid = 1` rows on every read, so deleting a paid row frees its slot(s) the
+// instant it's gone, the same way marking one paid consumes them.
+export async function deleteRegistration(eventId: string, registrationId: string): Promise<boolean> {
+  const result = await db.execute({
+    sql: "DELETE FROM registrations WHERE id = ? AND event_id = ?",
+    args: [registrationId, eventId],
+  });
+  return result.rowsAffected > 0;
+}
+
+export type ResendSmsTarget = { name: string; payerPhone: string; isTestRow: boolean };
+
+// Only a row that's actually reached the payment-proof step (payer_phone IS NOT NULL) has
+// anything to resend — one that hasn't gets NULL back, same "not ready yet" signal whether the
+// caller is the manual Resend button or a future retry mechanism (issue #11).
+export async function getResendSmsTarget(
+  eventId: string,
+  registrationId: string,
+): Promise<ResendSmsTarget | null> {
+  const result = await db.execute({
+    sql: `SELECT name, payer_phone, is_test_row FROM registrations
+          WHERE id = ? AND event_id = ? AND payer_phone IS NOT NULL`,
+    args: [registrationId, eventId],
+  });
+  const row = result.rows[0];
+  if (!row) return null;
+  return {
+    name: String(row.name),
+    payerPhone: String(row.payer_phone),
+    isTestRow: Number(row.is_test_row) === 1,
+  };
+}
+
 // Headcount, not row count — a paid registration's guests count against capacity the same as
 // the registrant themselves (ported from busherian-hike issue #82). Scoped by event_id since
 // this database can hold more than one event's rows (generalize.md §2/§3).

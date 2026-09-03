@@ -6,6 +6,29 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 adheres to [Semantic Versioning](https://semver.org) (pre-1.0: MINOR = new features/user-facing
 behaviour, PATCH = fixes/docs/housekeeping — see `SKILL.md`).
 
+## [0.7.0] - 2026-09-03
+
+### Added
+
+- Organiser payments dashboard at `/payments`: mark paid, resend confirmation SMS, delete a
+  registration, search by name — ported from busherian-hike, generalized to display an event's
+  custom fields generically instead of hardcoded school/ticket-type columns (closes #8)
+- CSV export (`/api/export/registrations`), gated by a freshly re-verified PIN rather than the
+  payments session cookie. `custom_fields_json` is dynamically flattened into one `custom_<key>`
+  column per key actually present, rather than exported as an opaque JSON blob
+- `markPaid`/`deleteRegistration`/`getAllRegistrations`/`getRegistrationsForPayments`/
+  `getResendSmsTarget` are all event-scoped; `resendSmsConfirmation` takes the active event's
+  name/date to rebuild the confirmation message
+
+**Verified against the live Turso database and a running server**: seeded a real event +
+registration with a payment proof, exercised the full HTTP flow — PIN unlock, mark paid, resend
+SMS, CSV export (confirmed the dynamic `custom_ticketType` column), wrong PIN/no-session
+rejected, delete, lock.
+
+New e2e smoke check for `/payments`'s locked (PIN-entry) state, same reasoning as `/checkin`'s.
+
+tag: `v0.7.0`
+
 ## [0.6.0] - 2026-09-03
 
 ### Added
