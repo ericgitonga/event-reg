@@ -49,6 +49,22 @@ describe("validateEventInput", () => {
     );
   });
 
+  it("rejects a zero retentionDays", () => {
+    expect(() => validateEventInput({ ...VALID_INPUT, retentionDays: 0 })).toThrow(
+      /"retentionDays" must be greater than zero/,
+    );
+  });
+
+  it("rejects a negative retentionDays", () => {
+    expect(() => validateEventInput({ ...VALID_INPUT, retentionDays: -5 })).toThrow(
+      /"retentionDays" must be greater than zero/,
+    );
+  });
+
+  it("accepts a positive retentionDays", () => {
+    expect(() => validateEventInput({ ...VALID_INPUT, retentionDays: 1 })).not.toThrow();
+  });
+
   it("rejects a non-object config", () => {
     expect(() => validateEventInput({ ...VALID_INPUT, config: "not an object" })).toThrow(
       /"config" must be an object/,

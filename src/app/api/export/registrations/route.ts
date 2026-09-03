@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
   }
 
-  const { pin } = await request.json();
+  const { pin } = await request.json().catch(() => ({ pin: undefined }));
   if (!verifyPin(pin, event.organiserPin)) {
     await recordAuthFailure(ROUTE, ip, PIN_AUTH_RATE_LIMIT);
     return NextResponse.json({ ok: false }, { status: 401 });

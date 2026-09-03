@@ -34,6 +34,18 @@ def test_privacy_content_reflects_active_event():
         assert FIXTURE["dataControllerContact"] in text
 
 
+def test_privacy_discloses_indefinite_payment_field_retention():
+    # Regression coverage for issue #28 (Medium, extras/security-audit.md finding M1):
+    # payer_phone/mpesa_code are never purged by purgeContactFields, so the notice must say so
+    # explicitly rather than implying (via the sentence above) that all contact info is deleted.
+    with browser_page() as page:
+        page.goto("/privacy")
+        content = page.get_by_test_id("privacy-content")
+        content.wait_for(state="visible")
+        text = content.inner_text()
+        assert "financial record" in text
+
+
 def test_next_of_kin_hint_visible_on_registration_form():
     with browser_page() as page:
         page.goto("/")
@@ -45,6 +57,7 @@ def test_next_of_kin_hint_visible_on_registration_form():
 TESTS = [
     test_privacy_link_navigates_to_notice,
     test_privacy_content_reflects_active_event,
+    test_privacy_discloses_indefinite_payment_field_retention,
     test_next_of_kin_hint_visible_on_registration_form,
 ]
 

@@ -81,6 +81,10 @@ export default async function PrivacyPage() {
               issue report, no longer than that. Other registration details (name and similar)
               are kept only as an internal headcount record.
             </p>
+            <p className="mt-2">
+              The phone number you pay from and your payment transaction code are kept
+              indefinitely as a financial record, and are not covered by the deletion above.
+            </p>
           </section>
 
           <section>
